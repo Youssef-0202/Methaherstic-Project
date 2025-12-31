@@ -55,7 +55,7 @@ def process_data():
 
     # --- 2. Build Time Map ---
     # Map Row Index -> (Day, Time)
-    # Rows start from 7 (data starts)
+    # Rows start from 8 (data starts)
     # Column 1 = Day, Column 2 = Time
     
     row_time_map = {}
@@ -63,7 +63,7 @@ def process_data():
     
     # Scan rows to build time index
     max_row = sheet.max_row
-    for r in range(7, max_row + 1):
+    for r in range(8, max_row + 1):
         day_cell = sheet.cell(row=r, column=1).value
         time_cell = sheet.cell(row=r, column=2).value
         
@@ -76,6 +76,7 @@ def process_data():
                 # Shift back by 30 minutes as requested
                 new_time = time_cell - timedelta(minutes=30)
                 t_str = new_time.strftime("%H:%M")
+                row_time_map[r] = {'day': current_day, 'time': t_str}
             else:
                 # Handle string time (e.g. "09:00:00")
                 try:
@@ -88,71 +89,83 @@ def process_data():
                     # Invalid time format (e.g. "Matin", "Pause"), skip
                     continue
 
-    # --- 3. Extract Assignments (Handling Merged Cells) ---
+    # --- 3. Extract Group Names from Column Headers ---
+    # Row 5 has the group names (ERME, IFA, MDSIM, GE, MEA, etc.)
+    group_col_map = {}
+    for col_idx in room_col_map.keys():
+        group_cell = sheet.cell(row=5, column=col_idx).value
+        if group_cell:
+            group_name = str(group_cell).strip()
+            group_col_map[col_idx] = group_name
+        else:
+            group_col_map[col_idx] = "Unknown"
+    
+    # --- 4. Extract Assignments (Handling Merged Cells) ---
     assignments = []
-    courses = set()
-    processed_cells = set() # Track (row, col) to avoid duplicates if we iterate
+    sessions = set()
+    processed_cells = set()
     
     # Helper to parse content
     def parse_content(content):
-        parts = content.split('-')
-        c_id = parts[0].strip()
-        g_id = parts[-1].strip() if len(parts) > 1 else "All"
-        c_type = 'TD' if 'TD' in content else ('TP' if 'TP' in content else 'Cours')
-        return c_id, g_id, c_type
+        # Content is the session info (e.g., "TC S3 - TD")
+        session_type = 'TD' if 'TD' in content else ('TP' if 'TP' in content else 'Cours')
+        session_name = content.strip()
+        return session_name, session_type
 
     # A. Handle Merged Ranges
     for merged_range in sheet.merged_cells.ranges:
-        # Get bounds
         min_col, min_row, max_col, max_row = merged_range.bounds
         
-        # Check if this merge is in the data area
-        if min_row >= 7 and min_col >= 3:
-            # Get Value from top-left cell
+        # Check if this merge is in the data area (starts from row 8)
+        if min_row >= 8 and min_col >= 3:
             val = sheet.cell(row=min_row, column=min_col).value
             
             if val and str(val).strip():
                 content = str(val).strip()
                 
-                # Get Room
+                # Get Room (merged cells usually stay in one column for room, or span multiple)
+                # We assume the room is associated with the columns it spans
                 if min_col in room_col_map:
                     room_id = room_col_map[min_col]
                     
-                    # Get Start Time
                     if min_row in row_time_map:
                         start_info = row_time_map[min_row]
                         day = start_info['day']
                         start_time = start_info['time']
                         
-                        # Calculate Duration (slots * 30 mins)
-                        # Assuming contiguous rows are 30 min increments
                         slots = (max_row - min_row) + 1
                         duration_hours = (slots * 30) / 60.0
-                        
-                        # Format as string "4h" or "1.5h"
                         dur_str = f"{int(duration_hours)}h" if duration_hours.is_integer() else f"{duration_hours}h"
                         
-                        c_id, g_id, c_type = parse_content(content)
+                        session_name, session_type = parse_content(content)
+                        
+                        # Collect ALL groups involved in this merged range
+                        involved_groups = []
+                        for c in range(min_col, max_col + 1):
+                            g_name = group_col_map.get(c, "Unknown")
+                            if g_name not in involved_groups:
+                                involved_groups.append(g_name)
+                        
+                        groups_str = ", ".join(involved_groups)
                         
                         assignments.append({
                             'day': day,
                             'start_time': start_time,
                             'duration': dur_str,
                             'room_id': room_id,
-                            'course_name': c_id,
-                            'group_id': g_id,
-                            'type': c_type,
-                            'teacher_id': 'Unknown'
+                            'involved_groups': groups_str,
+                            'session_name': session_name,
+                            'session_type': session_type,
+                            'teacher_id': ''
                         })
-                        courses.add(c_id)
+                        sessions.add(session_name)
                         
-                        # Mark cells as processed
                         for r in range(min_row, max_row + 1):
                             for c in range(min_col, max_col + 1):
                                 processed_cells.add((r, c))
 
     # B. Handle Single Cells (Non-merged)
-    for r in range(7, max_row + 1):
+    for r in range(8, max_row + 1):
         if r not in row_time_map: continue
         
         for c in room_col_map.keys():
@@ -164,63 +177,50 @@ def process_data():
                 content = str(val).strip()
                 
                 start_info = row_time_map[r]
-                c_id, g_id, c_type = parse_content(content)
+                session_name, session_type = parse_content(content)
+                group_name = group_col_map.get(c, "Unknown")
                 
                 assignments.append({
                     'day': start_info['day'],
                     'start_time': start_info['time'],
                     'duration': "0.5h",
                     'room_id': room_col_map[c],
-                    'course_name': c_id,
-                    'group_id': g_id,
-                    'type': c_type,
-                    'teacher_id': 'Unknown'
+                    'involved_groups': group_name,
+                    'session_name': session_name,
+                    'session_type': session_type,
+                    'teacher_id': ''
                 })
-                courses.add(c_id)
+                sessions.add(session_name)
 
     df_assignments = pd.DataFrame(assignments)
-    df_courses = pd.DataFrame({'course_name': list(courses)})
+    df_sessions = pd.DataFrame({'session_name': list(sessions)})
     
     # --- SORTING ---
-    # Define day order
-    day_order = {
-        'LUNDI': 0, 'MARDI': 1, 'MERCREDI': 2, 
-        'JEUDI': 3, 'VENDREDI': 4, 'SAMEDI': 5, 'DIMANCHE': 6
-    }
-    
-    # Add temporary sort column
+    day_order = {'LUNDI': 0, 'MARDI': 1, 'MERCREDI': 2, 'JEUDI': 3, 'VENDREDI': 4, 'SAMEDI': 5, 'DIMANCHE': 6}
     df_assignments['day_index'] = df_assignments['day'].map(lambda x: day_order.get(str(x).upper(), 99))
-    
-    # Sort by Day Index then Start Time
     df_assignments.sort_values(by=['day_index', 'start_time'], inplace=True)
-    
-    # Remove temporary column
     df_assignments.drop(columns=['day_index'], inplace=True)
     
-    # --- ENRICHMENT (Mocking) ---
-    import random
-    random.seed(42)
+    # Extract unique groups found in the Excel
+    all_groups_found = set()
+    for gs in df_assignments['involved_groups']:
+        for g in gs.split(", "):
+            all_groups_found.add(g)
     
-    # Set teacher_id to empty (to be filled manually later)
-    df_assignments['teacher_id'] = ''
-    
-    unique_groups = df_assignments['group_id'].unique()
-    group_data = [{'group_id': g, 'size': 100 if "All" in g or "TC" in g else 30} for g in unique_groups]
-    df_groups = pd.DataFrame(group_data)
-    
-    # Create empty teachers file (to be filled manually)
-    df_teachers = pd.DataFrame({'teacher_id': []})
+    # We don't overwrite the manual groups.csv if it exists, 
+    # but we can output what we found for verification.
+    df_groups_found = pd.DataFrame({'group_name': list(all_groups_found)})
 
     print(f"Extracted {len(df_assignments)} assignments.")
-    print(f"Extracted {len(df_courses)} unique courses.")
+    print(f"Extracted {len(df_sessions)} unique sessions.")
+    print(f"Extracted {len(all_groups_found)} unique groups.")
     
     # Save
     os.makedirs(OUTPUT_DIR, exist_ok=True)
     df_rooms.to_csv(os.path.join(OUTPUT_DIR, 'rooms.csv'), index=False)
     df_assignments.to_csv(os.path.join(OUTPUT_DIR, 'assignments.csv'), index=False)
-    df_courses.to_csv(os.path.join(OUTPUT_DIR, 'courses.csv'), index=False)
-    df_teachers.to_csv(os.path.join(OUTPUT_DIR, 'teachers.csv'), index=False)
-    df_groups.to_csv(os.path.join(OUTPUT_DIR, 'groups.csv'), index=False)
+    df_sessions.to_csv(os.path.join(OUTPUT_DIR, 'sessions.csv'), index=False)
+    # Note: We keep the manual groups.csv as the source of truth for sections.
     
     print(f"Saved CSVs to {OUTPUT_DIR}")
 

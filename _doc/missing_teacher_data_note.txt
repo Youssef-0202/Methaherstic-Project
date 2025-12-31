@@ -1,3 +1,4 @@
 • Excel file missing teacher data - only has rooms, times, courses
+• Excel file missing group size data - need student count per group
 
 

@@ -1,11 +1,23 @@
-group_id,size
-All,100
-TD GP & GI,30
-TD,30
-TD MTU GB & GEG,30
-"TD
-GB & GEG",30
-TD GP,30
-GP et GI Langues,30
-TD biochimie structurale,30
-TD GB & GEG,30
+group_name,section
+MDSIM,MST
+GE,MST
+MEA,MST
+RD.EVG,MST
+RD,MST
+PNB,MST
+ISA,CI
+GMP,CI
+ERME,CI
+IFA,CI
+PCM,CI
+IEGS,CI
+GC,LST
+IEEA,LST
+EE,LST
+GARM,LST
+MIASI,LST
+BP,LST
+BA,LST
+SIR,LST
+S1,TC
+S2,TC
