@@ -1,0 +1,66 @@
+# KEY COMPONENTS OF A METAHEURISTIC ALGORITHM
+
+1. **Representation (Encoding)**
+   - How the solution is structured in memory (Binary, Permutation, Real-valued, etc.).
+
+2. **Initial Solution**
+   - How the search begins (Random generation vs. Constructive Heuristic).
+
+3. **Objective Function (Fitness/Cost)**
+   - The formula used to evaluate how "good" or "bad" a solution is (e.g., counting constraint violations).
+
+4. **Neighborhood Structure (Moves)**
+   - The rules for generating new solutions from the current one (Swap, Insert, Invert, etc.).
+
+5. **Selection Strategy**
+   - The logic for choosing the next solution to move to (e.g., Greedy, Probabilistic/Metropolis, Tournament).
+
+6. **Termination Criterion**
+   - The condition to stop the algorithm (Max iterations, Time limit, Target score reached, Stagnation).
+
+7. **Memory / History (Optional)**
+   - Storing past information to guide the search (e.g., Tabu list, Pheromone trails, Best-so-far).
+
+---------------------------------------------------------
+
+# MECHANISMS: HOW THEY ARE APPLIED
+
+## 1. MOVES (The Engine)
+*   **Where:** Defined in **Neighborhood Structure**.
+*   **How it works:**
+    *   **Swap:** Exchange two elements (e.g., Swap Teacher A with Teacher B).
+    *   **Insert/Shift:** Move an element to a new empty slot.
+    *   **Invert:** Reverse the order of a subsequence.
+
+## 2. INTENSIFICATION (Exploitation)
+*   **Goal:** "Digging deeper" to find the best solution in the *current* promising area.
+*   **How to apply:**
+    *   **Greedy Selection:** Always accept a move if it improves the score (Cost goes down).
+    *   **Small Neighborhoods:** Use small, fine-tuning moves (like swapping two adjacent slots) to polish the solution.
+    *   **Restart from Best:** Periodically reset the search to the best solution found so far to refine it further.
+
+## 3. DIVERSIFICATION (Exploration)
+*   **Goal:** "Jumping wide" to escape local optima and find *new* promising areas.
+*   **How to apply:**
+    *   **Accept Worse Solutions:** Allow the algorithm to move to a worse solution (e.g., Simulated Annealing's probability) to climb out of a valley.
+    *   **Large Perturbations:** Apply a "Kick" or a massive random change (e.g., shuffle 50% of the schedule).
+    *   **Tabu List:** Forbid returning to recently visited solutions to force the algorithm to go somewhere new.
+    *   **Random Restarts:** Completely scrap the current solution and generate a new random one.
+
+---------------------------------------------------------
+
+# TERMINOLOGY: SOLUTION VS. CANDIDATE
+
+## 1. SOLUTION
+*   **Definition:** A complete instance of the problem.
+*   **Context:** In timetabling, a "Solution" is a full schedule where **every** course has been assigned a Time Slot and a Room.
+*   **Status:** A solution can be:
+    *   **Feasible:** Breaks no Hard Constraints (Valid).
+    *   **Infeasible:** Breaks some Hard Constraints (Invalid, but still a "solution" structure).
+
+## 2. CANDIDATE (Candidate Solution)
+*   **Definition:** A potential solution that is currently being considered or evaluated by the algorithm.
+*   **Context:**
+    *   **In Local Search (SA, Tabu):** When you make a move (e.g., Swap), the result is a "Candidate". The algorithm checks its score to decide whether to accept it and make it the *current* solution.
+    *   **In Genetic Algorithms:** The individuals in the population are "Candidates" competing to survive.
+*   **Key Difference:** A "Solution" is the general structure. A "Candidate" is a specific solution *in the waiting room*, hoping to be picked as the next step.
