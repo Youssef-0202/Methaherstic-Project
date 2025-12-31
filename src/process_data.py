@@ -16,8 +16,8 @@ def process_data():
     sheet = wb.worksheets[0] # Assume first sheet
     
     # --- 1. Extract Rooms & Capacities ---
-    # Row 6 (index 6, 1-based) -> Room Names
-    # Row 5 (index 5, 1-based) -> Capacities
+    # Row 7 (index 7, 1-based) -> Room Names (A1, A2...)
+    # Row 6 (index 6, 1-based) -> Capacities (400, 400...)
     
     rooms = []
     # Columns 3 to end (C is 3)
@@ -26,12 +26,12 @@ def process_data():
     room_col_map = {} # Map column index to room_id
     
     while True:
-        room_name_cell = sheet.cell(row=6, column=col_idx).value
+        room_name_cell = sheet.cell(row=7, column=col_idx).value
         if not room_name_cell:
             break # Stop if no more rooms
             
         room_name = str(room_name_cell).strip()
-        cap_cell = sheet.cell(row=5, column=col_idx).value
+        cap_cell = sheet.cell(row=6, column=col_idx).value
         
         try:
             capacity = int(cap_cell) if cap_cell and isinstance(cap_cell, (int, float)) else 40
@@ -73,11 +73,20 @@ def process_data():
         if time_cell:
             # Format time
             if isinstance(time_cell, (datetime, pd.Timestamp)):
-                t_str = time_cell.strftime("%H:%M")
+                # Shift back by 30 minutes as requested
+                new_time = time_cell - timedelta(minutes=30)
+                t_str = new_time.strftime("%H:%M")
             else:
-                t_str = str(time_cell)[:5] # Take first 5 chars if string
-            
-            row_time_map[r] = {'day': current_day, 'time': t_str}
+                # Handle string time (e.g. "09:00:00")
+                try:
+                    t_str = str(time_cell)[:5]
+                    t_dt = datetime.strptime(t_str, "%H:%M")
+                    new_time = t_dt - timedelta(minutes=30)
+                    t_str = new_time.strftime("%H:%M")
+                    row_time_map[r] = {'day': current_day, 'time': t_str}
+                except:
+                    # Invalid time format (e.g. "Matin", "Pause"), skip
+                    continue
 
     # --- 3. Extract Assignments (Handling Merged Cells) ---
     assignments = []
@@ -118,16 +127,16 @@ def process_data():
                         # Calculate Duration (slots * 30 mins)
                         # Assuming contiguous rows are 30 min increments
                         slots = (max_row - min_row) + 1
-                        duration_min = slots * 30
+                        duration_hours = (slots * 30) / 60.0
                         
                         c_id, g_id, c_type = parse_content(content)
                         
                         assignments.append({
                             'day': day,
                             'start_time': start_time,
-                            'duration': duration_min,
+                            'duration': duration_hours,
                             'room_id': room_id,
-                            'course_id': c_id,
+                            'course_name': c_id,
                             'group_id': g_id,
                             'type': c_type,
                             'teacher_id': 'Unknown'
@@ -157,9 +166,9 @@ def process_data():
                 assignments.append({
                     'day': start_info['day'],
                     'start_time': start_info['time'],
-                    'duration': 30, # Default single cell = 30 mins
+                    'duration': 0.5, # 30 mins = 0.5 hours
                     'room_id': room_col_map[c],
-                    'course_id': c_id,
+                    'course_name': c_id,
                     'group_id': g_id,
                     'type': c_type,
                     'teacher_id': 'Unknown'
@@ -167,7 +176,7 @@ def process_data():
                 courses.add(c_id)
 
     df_assignments = pd.DataFrame(assignments)
-    df_courses = pd.DataFrame({'course_id': list(courses)})
+    df_courses = pd.DataFrame({'course_name': list(courses)})
     
     # --- SORTING ---
     # Define day order
@@ -190,8 +199,8 @@ def process_data():
     random.seed(42)
     
     teachers = [f"Teacher_{i+1}" for i in range(25)]
-    course_teacher_map = {c: random.choice(teachers) for c in df_courses['course_id']}
-    df_assignments['teacher_id'] = df_assignments['course_id'].map(course_teacher_map)
+    course_teacher_map = {c: random.choice(teachers) for c in df_courses['course_name']}
+    df_assignments['teacher_id'] = df_assignments['course_name'].map(course_teacher_map)
     
     unique_groups = df_assignments['group_id'].unique()
     group_data = [{'group_id': g, 'size': 100 if "All" in g or "TC" in g else 30} for g in unique_groups]

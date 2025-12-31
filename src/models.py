@@ -9,8 +9,7 @@ class Room:
 
 @dataclass
 class Course:
-    course_id: str
-    name: str
+    course_name: str
     # Add other attributes if needed (e.g., required room type)
 
 @dataclass
@@ -27,14 +26,15 @@ class Teacher:
 class Slot:
     day: str
     start_time: str
-    duration: int # in minutes
+    duration: float # in hours
     
     def __repr__(self):
-        return f"{self.day} {self.start_time} ({self.duration}m)"
+        duration_str = f"{int(self.duration)}" if self.duration.is_integer() else f"{self.duration}"
+        return f"{self.day} {self.start_time} ({duration_str}h)"
 
 @dataclass
 class Assignment:
-    course_id: str
+    course_name: str
     group_id: str
     teacher_id: str
     room_id: str

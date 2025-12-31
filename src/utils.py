@@ -24,9 +24,9 @@ def load_data(data_dir: str):
     df_courses = pd.read_csv(os.path.join(data_dir, 'courses.csv'))
     courses = {}
     for _, row in df_courses.iterrows():
-        c_id = str(row['course_id'])
-        c = Course(course_id=c_id, name=c_id)
-        courses[c_id] = c
+        c_name = str(row['course_name'])
+        c = Course(course_name=c_name)
+        courses[c_name] = c
         
     # Load Groups
     df_groups = pd.read_csv(os.path.join(data_dir, 'groups.csv'))
@@ -51,11 +51,11 @@ def load_data(data_dir: str):
         slot = Slot(
             day=row['day'], 
             start_time=row['start_time'], 
-            duration=int(row['duration'])
+            duration=float(row['duration'])
         )
         
         a = Assignment(
-            course_id=str(row['course_id']),
+            course_name=str(row['course_name']),
             group_id=str(row['group_id']),
             teacher_id=str(row['teacher_id']),
             room_id=str(row['room_id']),

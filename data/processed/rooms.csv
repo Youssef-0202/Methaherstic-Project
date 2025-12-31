@@ -1,35 +1,35 @@
 room_id,capacity,type
-400,40,Classroom
-400,40,Classroom
-400,40,Classroom
-240,40,Classroom
-48,40,Classroom
-48,40,Classroom
-48,40,Classroom
-48,40,Classroom
-48,40,Classroom
-48,40,Classroom
-48,40,Classroom
-48,40,Classroom
-48,40,Classroom
-48,40,Classroom
-48,40,Classroom
-48,40,Classroom
-48,40,Classroom
-48,40,Classroom
-48,40,Classroom
-48,40,Classroom
-90,40,Classroom
-90,40,Classroom
-90,40,Classroom
-90,40,Classroom
-90,40,Classroom
-90,40,Classroom
-90,40,Classroom
-90,40,Classroom
-48,40,Classroom
-48,40,Classroom
-48,40,Classroom
-48,40,Classroom
-48,40,Classroom
-48,40,Classroom
+A1,400,Amphitheater
+A2,400,Amphitheater
+A4,400,Amphitheater
+A3,240,Amphitheater
+S5,48,Classroom
+S 7,48,Classroom
+S 8,48,Classroom
+S 9,48,Classroom
+S 10,48,Classroom
+S 11,48,Classroom
+S 12,48,Classroom
+S 13,48,Classroom
+S 14,48,Classroom
+S 15,48,Classroom
+S 16,48,Classroom
+S 17,48,Classroom
+S 18,48,Classroom
+S 19,48,Classroom
+S 20,48,Classroom
+S 21,48,Classroom
+S 23,90,Classroom
+S 24,90,Classroom
+S 25,90,Classroom
+S 26,90,Classroom
+S 27,90,Classroom
+S 28,90,Classroom
+S 29,90,Classroom
+S 30,90,Classroom
+GC3,48,Classroom
+GC2,48,Classroom
+Ch1,48,Classroom
+Ch2,48,Classroom
+G1,48,Classroom
+G2,48,Classroom
