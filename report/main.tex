@@ -1,50 +1,200 @@
 \documentclass[12pt,a4paper]{article}
 
-% --- Packages ---
+% --- Core Packages ---
 \usepackage[utf8]{inputenc}
 \usepackage[T1]{fontenc}
-\usepackage[french]{babel} % Use [english] if preferred
-\usepackage{amsmath, amssymb}
+\usepackage[french]{babel}
+\usepackage{amsmath, amssymb, amsfonts}
 \usepackage{geometry}
 \usepackage{graphicx}
 \usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage{titlesec}
+\usepackage{fancyhdr}
+\usepackage{booktabs}
+\usepackage{tcolorbox}
 
-\geometry{margin=1in}
+% --- Page Setup ---
+\geometry{
+    margin=1in,
+    headheight=15pt
+}
 
-% --- Title Information ---
-\title{Projet de Métaheuristiques : Emploi du Temps Automatisé (FSTM)}
-\author{Personne A : Spécialiste Données}
-\date{\today}
+% --- Color Palette ---
+\definecolor{DeepBlue}{RGB}{26, 54, 104}
+\definecolor{SlateGray}{RGB}{71, 85, 105}
+\definecolor{LightGray}{RGB}{241, 245, 249}
 
+% --- Hyperref Setup ---
+\hypersetup{
+    colorlinks=true,
+    linkcolor=DeepBlue,
+    filecolor=DeepBlue,      
+    urlcolor=DeepBlue,
+    pdftitle={FSTM Timetabling Progress Report},
+}
+
+% --- Header & Footer ---
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small \textcolor{SlateGray}{FSTM Timetabling Project}}
+\fancyhead[R]{\small \textcolor{SlateGray}{Progress Report}}
+\fancyfoot[C]{\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+\renewcommand{\headrule}{\hbox to\headwidth{\color{SlateGray}\leaders\hrule height \headrulewidth\hfill}}
+
+% --- Section Styling ---
+\titleformat{\section}
+  {\color{DeepBlue}\normalfont\Large\bfseries}
+  {\thesection}{1em}{}
+\titleformat{\subsection}
+  {\color{DeepBlue}\normalfont\large\bfseries}
+  {\thesubsection}{1em}{}
+
+% --- Custom Title Page ---
 \begin{document}
 
-\maketitle
+\begin{titlepage}
+    \centering
+    \vspace*{2cm}
+    {\Huge \bfseries \color{DeepBlue} Automated Timetable Generation for FSTM using Metaheuristic Optimization \par}
+    \vspace{1cm}
+    {\Large \textcolor{SlateGray}{Progress Report: Data Processing Phase} \par}
+    \vspace{2cm}
+    \begin{tcolorbox}[colback=LightGray, colframe=DeepBlue, arc=5pt, width=0.8\textwidth, center]
+        \centering
+        \textbf{Group Members:} \\
+        Youssef Ait Bahssine \\
+        Mustapha Zmirli \\
+        Mohamed Bajadi \\
+        \vspace{0.5cm}
+        \textbf{Module:} \\
+        Metaheuristics - Master in Artificial Intelligence
+    \end{tcolorbox}
+    \vfill
+    {\large \today \par}
+    \vspace*{1cm}
+\end{titlepage}
 
+\newpage
 \tableofcontents
 \newpage
 
-\section{Introduction}
-Ce rapport détaille la phase de prétraitement des données pour le problème de génération d'emplois du temps à la FSTM.
+\section{Introduction and Problematic}
+The University Timetabling Problem (UTP) is a highly complex combinatorial optimization problem, proven to be NP-complete. At the Faculty of Sciences and Techniques of Marrakech (FSTM), the challenge involves assigning a set of courses, teachers, and student groups to specific time slots and rooms while respecting a diverse set of institutional requirements.
 
-\section{Modélisation Mathématique}
-Nous utilisons une fonction de coût pondérée $f(S)$ :
+The core problematic of this project lies in the idiosyncratic nature of these constraints; a \textbf{"feasible"} timetable must satisfy all mandatory requirements, while an \textbf{"optimal"} one must further minimize the violation of soft preferences to ensure the satisfaction of both students and faculty.
+
+\section{Problem Definition}
+The project objective is to design and implement an automated system that generates a weekly timetable by assigning five primary entities:
+\begin{itemize}[label=\textcolor{DeepBlue}{\textbullet}]
+    \item \textbf{Courses/Modules:} The academic units to be scheduled.
+    \item \textbf{Time Slots:} Available periods within the academic week.
+    \item \textbf{Classrooms / Laboratories:} The physical locations for events.
+    \item \textbf{Teachers:} The academic staff delivering the modules.
+    \item \textbf{Student Groups:} The cohorts attending the sessions.
+\end{itemize}
+
+\section{Constraints and Objective Function}
+Following the taxonomy provided by Lewis (2007), we classify our constraints into two categories:
+
+\subsection{Hard Constraints (Feasibility)}
+These are mandatory conditions. A solution is only valid if zero hard constraints are violated:
+\begin{itemize}[label=\textcolor{DeepBlue}{\textbullet}]
+    \item \textbf{Teacher Conflict:} A teacher cannot teach two courses simultaneously.
+    \item \textbf{Student Group Conflict:} A student group cannot attend more than one course at a time.
+    \item \textbf{Room Conflict:} A room cannot host multiple courses at the same time.
+    \item \textbf{Room Capacity:} The assigned room must accommodate the group size.
+    \item \textbf{Room Type:} Courses requiring labs or amphitheaters must be assigned to appropriate room types.
+\end{itemize}
+
+\subsection{Soft Constraints (Quality)}
+These represent preferences that improve the timetable’s utility:
+\begin{itemize}[label=\textcolor{DeepBlue}{\textbullet}]
+    \item \textbf{Schedule Gaps:} Minimizing idle periods (windows) for both teachers and students.
+    \item \textbf{Load Balancing:} Distributing teaching hours evenly across the week.
+    \item \textbf{Session Timing:} Minimizing very early or very late sessions.
+\end{itemize}
+
+\subsection{Objective Function}
+We will use a Weighted Cost Function $f(S)$ to evaluate a solution $S$:
 \begin{equation}
     f(S) = \sum_{i} w_H \cdot H_i(S) + \sum_{j} w_S \cdot S_j(S)
 \end{equation}
+where $H_i$ are hard constraint violations, $S_j$ are soft constraint violations, and $w_H \gg w_S$ to ensure feasibility is prioritized.
 
-\subsection{Contraintes Fortes (Hard Constraints)}
-\begin{itemize}
-    \item \textbf{H1 (Conflit Enseignant) :} Un enseignant ne peut pas donner deux cours simultanément.
-    \item \textbf{H2 (Conflit Groupe) :} Un groupe d'étudiants ne peut pas assister à deux cours en même temps.
-    \item \textbf{H3 (Conflit Salle) :} Une salle ne peut pas accueillir deux cours à la fois.
+\section{Methodology}
+Our approach follows these development stages:
+\begin{enumerate}
+    \item \textbf{Formal Modeling:} This stage involves translating the real-world FSTM timetabling requirements into a rigorous mathematical framework. We define the sets of entities (Teachers, Rooms, Groups) and formulate the constraints as mathematical functions. This provides a clear "blueprint" for the optimization process.
+    \item \textbf{Solution Encoding:} To enable the metaheuristic to search for solutions, we use a \textit{direct representation}. A timetable is encoded as a data structure where each entry represents a specific assignment. This allows the algorithm to efficiently explore the search space.
+    \item \textbf{Constraint Handling:} We adopt a \textbf{"One-Stage" strategy}. Instead of solving hard constraints first and soft constraints later, we combine both into a single objective function. By using high penalty weights ($w_H$) for hard constraints, the algorithm naturally prioritizes feasibility.
+    \item \textbf{Experimental Evaluation:} The final stage involves testing the algorithm using the specific data instance extracted from the FSTM Excel file. Since no external benchmarks are available, this real-world dataset serves as our primary test case.
+\end{enumerate}
+
+\section{Potential Metaheuristic Algorithms}
+Based on the survey of state-of-the-art techniques, we evaluate:
+\begin{itemize}[label=\textcolor{DeepBlue}{\textbullet}]
+    \item \textbf{Simulated Annealing:} Useful for escaping local optima by allowing occasional "worse" moves early in the process.
+    \item \textbf{Evolutionary Algorithms (Genetic Algorithms):} Population-based search to explore large solution spaces.
 \end{itemize}
 
-\section{Traitement des Données}
-Les données ont été extraites du fichier Excel source et converties en fichiers CSV structurés :
+\newpage
+\section{Mathematical Formulation of Constraints}
+To ensure clarity and facilitate implementation, we formalize the constraints using mathematical notation.
+
+\subsection{Notation (Parameters)}
 \begin{itemize}
-    \item \texttt{rooms.csv} : Liste des salles et capacités.
-    \item \texttt{assignments.csv} : Sessions extraites (183 sessions).
-    \item \texttt{groups.csv} : Cartographie des groupes par section (MST, CI, LST, TC).
+    \item \textbf{Sets:} $C$ (Courses), $T$ (Teachers), $G$ (Groups), $R$ (Rooms), $S$ (Slots).
+    \item \textbf{Variables:} $x_{c,t,g,r,s} \in \{0, 1\}$ (Assignment binary variable).
+    \item \textbf{Derived Parameters:}
+    \begin{itemize}
+        \item $type_r$: Room type (e.g., 'A' for Amphi, 'S' for Classroom).
+        \item $type_c$: Required room type (e.g., 'Cours' $\to$ Amphi, 'TP' $\to$ Lab).
+    \end{itemize}
 \end{itemize}
+
+\subsection{Hard Constraints Formulas}
+\begin{enumerate}
+    \item \textbf{Teacher Conflict ($H_1$):} $\sum_{t \in T} \sum_{s \in S} \max(0, \sum_{c,g,r} x_{c,t,g,r,s} - 1)$ \\
+    \textit{Ensures no teacher is assigned to multiple courses at the same time.}
+    
+    \item \textbf{Group Conflict ($H_2$):} $\sum_{g \in G} \sum_{s \in S} \max(0, \sum_{c,t,r} x_{c,t,g,r,s} - 1)$ \\
+    \textit{Ensures no student group attends multiple sessions simultaneously.}
+    
+    \item \textbf{Room Conflict ($H_3$):} $\sum_{r \in R} \sum_{s \in S} \max(0, \sum_{c,t,g} x_{c,t,g,r,s} - 1)$ \\
+    \textit{Ensures physical exclusivity of rooms.}
+    
+    \item \textbf{Room Capacity ($H_4$):} $\sum_{c,t,g,r,s} x_{c,t,g,r,s} \cdot \max(0, size_g - cap_r)$ \\
+    \textit{Penalizes if the group size exceeds the room capacity.}
+    
+    \item \textbf{Room Type ($H_5$):} $\sum_{c,t,g,r,s} x_{c,t,g,r,s} \cdot |type_c - type_r|$ \\
+    \textit{Ensures sessions are assigned to appropriate room types (e.g., Labs for TPs).}
+\end{enumerate}
+
+\subsection{Soft Constraints Formulas}
+\begin{enumerate}
+    \item \textbf{Schedule Gaps ($S_1$):} $\sum_{g \in G} \sum_{d \in Days} \text{Gaps}(g, d)$ \\
+    \textit{Minimizes idle periods (windows) for student groups.}
+    
+    \item \textbf{Load Balancing ($S_2$):} $\text{Var}(\sum_{c,g,r,s} x_{c,t,g,r,s} \text{ for each } t)$ \\
+    \textit{Distributes teaching hours evenly across the faculty.}
+    
+    \item \textbf{Session Timing ($S_3$):} $\sum_{c,t,g,r,s} x_{c,t,g,r,s} \cdot penalty_s$ \\
+    \textit{Avoids undesirable early or late slots.}
+\end{enumerate}
+
+\section{Implementation Progress}
+\subsection{Data Extraction Pipeline}
+We developed a Python-based pipeline using \texttt{openpyxl} to process the official Excel occupation file.
+\begin{itemize}
+    \item \textbf{Room Processing:} Extracted 34 rooms with capacities and types.
+    \item \textbf{Assignment Extraction:} Successfully parsed 183 sessions, handling complex merged cells.
+    \item \textbf{Time Normalization:} Implemented a 30-minute offset (e.g., 09:00 $\to$ 08:30).
+\end{itemize}
+
+\subsection{Data Structuring}
+The extracted data is organized into structured CSV files: \texttt{assignments.csv}, \texttt{rooms.csv}, and \texttt{groups.csv}.
 
 \end{document}
