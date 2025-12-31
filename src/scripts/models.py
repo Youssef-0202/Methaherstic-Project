@@ -1,21 +1,22 @@
 from dataclasses import dataclass
-from typing import List, Optional
+from typing import List
 
 @dataclass
 class Room:
     room_id: str
-    capacity: int
-    type: str # 'Amphitheater' or 'Classroom'
+    capacity: int  # cap_r
+    room_type: str # type_r (e.g., 'Amphi', 'Lab', 'Classroom')
 
 @dataclass
 class Course:
     course_name: str
-    # Add other attributes if needed (e.g., required room type)
+    course_type: str # type_c (matches room_type)
 
 @dataclass
 class Group:
-    group_id: str
-    size: int
+    group_name: str
+    section: str
+    size: int # size_g
 
 @dataclass
 class Teacher:
@@ -35,8 +36,8 @@ class Slot:
 @dataclass
 class Assignment:
     course_name: str
-    group_id: str
-    teacher_id: str
-    room_id: str
-    slot: Slot
-    type: str # 'Cours', 'TD', 'TP'
+    involved_groups: List[str] # Set of groups G
+    teacher_id: str           # Teacher T
+    room_id: str              # Room R
+    slot: Slot                # Slot S
+    session_type: str         # Cours, TD, TP

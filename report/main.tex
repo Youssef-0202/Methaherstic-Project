@@ -1,0 +1,50 @@
+\documentclass[12pt,a4paper]{article}
+
+% --- Packages ---
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[french]{babel} % Use [english] if preferred
+\usepackage{amsmath, amssymb}
+\usepackage{geometry}
+\usepackage{graphicx}
+\usepackage{hyperref}
+
+\geometry{margin=1in}
+
+% --- Title Information ---
+\title{Projet de Métaheuristiques : Emploi du Temps Automatisé (FSTM)}
+\author{Personne A : Spécialiste Données}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\tableofcontents
+\newpage
+
+\section{Introduction}
+Ce rapport détaille la phase de prétraitement des données pour le problème de génération d'emplois du temps à la FSTM.
+
+\section{Modélisation Mathématique}
+Nous utilisons une fonction de coût pondérée $f(S)$ :
+\begin{equation}
+    f(S) = \sum_{i} w_H \cdot H_i(S) + \sum_{j} w_S \cdot S_j(S)
+\end{equation}
+
+\subsection{Contraintes Fortes (Hard Constraints)}
+\begin{itemize}
+    \item \textbf{H1 (Conflit Enseignant) :} Un enseignant ne peut pas donner deux cours simultanément.
+    \item \textbf{H2 (Conflit Groupe) :} Un groupe d'étudiants ne peut pas assister à deux cours en même temps.
+    \item \textbf{H3 (Conflit Salle) :} Une salle ne peut pas accueillir deux cours à la fois.
+\end{itemize}
+
+\section{Traitement des Données}
+Les données ont été extraites du fichier Excel source et converties en fichiers CSV structurés :
+\begin{itemize}
+    \item \texttt{rooms.csv} : Liste des salles et capacités.
+    \item \texttt{assignments.csv} : Sessions extraites (183 sessions).
+    \item \texttt{groups.csv} : Cartographie des groupes par section (MST, CI, LST, TC).
+\end{itemize}
+
+\end{document}

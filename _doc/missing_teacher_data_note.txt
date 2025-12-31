@@ -1,4 +1,13 @@
 • Excel file missing teacher data - only has rooms, times, courses
 • Excel file missing group size data - need student count per group
 
-
+POINTS TO DISCUSS RE: MATHEMATICAL MODEL:
+• Hard Constraints (H1-H5):
+  - H1/H2/H3: Conflicts (Teacher, Group, Room)
+  - H4: Capacity check (size_g <= cap_r)
+  - H5: Room Type match (e.g., TP must be in Lab)
+• Soft Constraints (S1-S3):
+  - S1: Minimize gaps (windows)
+  - S2: Load balancing for teachers
+  - S3: Avoid early/late sessions
+• Objective Function: f(S) = Σ wH·Hi + Σ wS·Sj (wH=1000, wS=1)
