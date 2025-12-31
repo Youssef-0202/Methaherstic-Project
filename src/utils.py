@@ -48,10 +48,14 @@ def load_data(data_dir: str):
     df_assign = pd.read_csv(os.path.join(data_dir, 'assignments.csv'))
     assignments = []
     for _, row in df_assign.iterrows():
+        # Parse duration string "4h" -> 4.0
+        dur_str = str(row['duration']).replace('h', '')
+        duration_val = float(dur_str)
+        
         slot = Slot(
             day=row['day'], 
             start_time=row['start_time'], 
-            duration=float(row['duration'])
+            duration=duration_val
         )
         
         a = Assignment(
@@ -68,3 +72,21 @@ def load_data(data_dir: str):
     print(f"Loaded {len(assignments)} existing assignments.")
     
     return rooms, courses, groups, teachers, assignments
+
+def save_solution(assignments: List[Assignment], output_path: str):
+    data = []
+    for a in assignments:
+        data.append({
+            'day': a.slot.day,
+            'start_time': a.slot.start_time,
+            'duration': a.slot.duration,
+            'room_id': a.room_id,
+            'course_name': a.course_name,
+            'group_id': a.group_id,
+            'teacher_id': a.teacher_id,
+            'type': a.type
+        })
+    
+    df = pd.DataFrame(data)
+    df.to_csv(output_path, index=False)
+    print(f"Solution saved to {output_path}")

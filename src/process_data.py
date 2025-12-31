@@ -129,12 +129,15 @@ def process_data():
                         slots = (max_row - min_row) + 1
                         duration_hours = (slots * 30) / 60.0
                         
+                        # Format as string "4h" or "1.5h"
+                        dur_str = f"{int(duration_hours)}h" if duration_hours.is_integer() else f"{duration_hours}h"
+                        
                         c_id, g_id, c_type = parse_content(content)
                         
                         assignments.append({
                             'day': day,
                             'start_time': start_time,
-                            'duration': duration_hours,
+                            'duration': dur_str,
                             'room_id': room_id,
                             'course_name': c_id,
                             'group_id': g_id,
@@ -166,7 +169,7 @@ def process_data():
                 assignments.append({
                     'day': start_info['day'],
                     'start_time': start_info['time'],
-                    'duration': 0.5, # 30 mins = 0.5 hours
+                    'duration': "0.5h",
                     'room_id': room_col_map[c],
                     'course_name': c_id,
                     'group_id': g_id,
@@ -198,14 +201,15 @@ def process_data():
     import random
     random.seed(42)
     
-    teachers = [f"Teacher_{i+1}" for i in range(25)]
-    course_teacher_map = {c: random.choice(teachers) for c in df_courses['course_name']}
-    df_assignments['teacher_id'] = df_assignments['course_name'].map(course_teacher_map)
+    # Set teacher_id to empty (to be filled manually later)
+    df_assignments['teacher_id'] = ''
     
     unique_groups = df_assignments['group_id'].unique()
     group_data = [{'group_id': g, 'size': 100 if "All" in g or "TC" in g else 30} for g in unique_groups]
     df_groups = pd.DataFrame(group_data)
-    df_teachers = pd.DataFrame({'teacher_id': teachers})
+    
+    # Create empty teachers file (to be filled manually)
+    df_teachers = pd.DataFrame({'teacher_id': []})
 
     print(f"Extracted {len(df_assignments)} assignments.")
     print(f"Extracted {len(df_courses)} unique courses.")
