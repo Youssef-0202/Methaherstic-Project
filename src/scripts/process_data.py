@@ -153,7 +153,6 @@ def process_data():
                             'start_time': start_time,
                             'duration': dur_str,
                             'room_id': room_id,
-                            'involved_groups': groups_str,
                             'session_name': session_name,
                             'session_type': session_type,
                             'teacher_id': ''
@@ -178,14 +177,12 @@ def process_data():
                 
                 start_info = row_time_map[r]
                 session_name, session_type = parse_content(content)
-                group_name = group_col_map.get(c, "Unknown")
                 
                 assignments.append({
                     'day': start_info['day'],
                     'start_time': start_info['time'],
                     'duration': "0.5h",
                     'room_id': room_col_map[c],
-                    'involved_groups': group_name,
                     'session_name': session_name,
                     'session_type': session_type,
                     'teacher_id': ''
@@ -201,26 +198,14 @@ def process_data():
     df_assignments.sort_values(by=['day_index', 'start_time'], inplace=True)
     df_assignments.drop(columns=['day_index'], inplace=True)
     
-    # Extract unique groups found in the Excel
-    all_groups_found = set()
-    for gs in df_assignments['involved_groups']:
-        for g in gs.split(", "):
-            all_groups_found.add(g)
-    
-    # We don't overwrite the manual groups.csv if it exists, 
-    # but we can output what we found for verification.
-    df_groups_found = pd.DataFrame({'group_name': list(all_groups_found)})
-
     print(f"Extracted {len(df_assignments)} assignments.")
     print(f"Extracted {len(df_sessions)} unique sessions.")
-    print(f"Extracted {len(all_groups_found)} unique groups.")
     
     # Save
     os.makedirs(OUTPUT_DIR, exist_ok=True)
     df_rooms.to_csv(os.path.join(OUTPUT_DIR, 'rooms.csv'), index=False)
     df_assignments.to_csv(os.path.join(OUTPUT_DIR, 'assignments.csv'), index=False)
     df_sessions.to_csv(os.path.join(OUTPUT_DIR, 'sessions.csv'), index=False)
-    # Note: We keep the manual groups.csv as the source of truth for sections.
     
     print(f"Saved CSVs to {OUTPUT_DIR}")
 
