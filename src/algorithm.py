@@ -89,21 +89,75 @@ class TimetableSolver:
         h, m = map(int, time_str.split(':'))
         return h * 60 + m
 
-    def solve(self, max_iterations=1000, initial_temp=100.0, cooling_rate=0.95):
+    def get_neighbor(self, solution: List[Assignment]) -> List[Assignment]:
+        neighbor = copy.deepcopy(solution)
+        
+        # Randomly select a move type: 
+        # 1. Move: Change slot/room for one assignment
+        # 2. Swap: Swap slots/rooms between two assignments
+        move_type = random.choice(['move', 'swap'])
+        
+        if move_type == 'move' and neighbor:
+            # Pick random assignment
+            idx = random.randint(0, len(neighbor) - 1)
+            assign = neighbor[idx]
+            
+            # Pick random new slot
+            # For simplicity, pick a random day and time (8:30 - 18:30)
+            days = ['LUNDI', 'MARDI', 'MERCREDI', 'JEUDI', 'VENDREDI', 'SAMEDI']
+            times = ['08:30', '09:00', '09:30', '10:00', '10:30', '11:00', '11:30', 
+                     '12:00', '12:30', '13:00', '13:30', '14:00', '14:30', '15:00', 
+                     '15:30', '16:00', '16:30', '17:00', '17:30', '18:00', '18:30']
+            
+            new_day = random.choice(days)
+            new_time = random.choice(times)
+            
+            # Pick random new room
+            new_room_id = random.choice(list(self.rooms.keys()))
+            
+            # Update assignment
+            assign.slot.day = new_day
+            assign.slot.start_time = new_time
+            assign.room_id = new_room_id
+            
+        elif move_type == 'swap' and len(neighbor) >= 2:
+            idx1, idx2 = random.sample(range(len(neighbor)), 2)
+            
+            # Swap Slot and Room
+            neighbor[idx1].slot.day, neighbor[idx2].slot.day = neighbor[idx2].slot.day, neighbor[idx1].slot.day
+            neighbor[idx1].slot.start_time, neighbor[idx2].slot.start_time = neighbor[idx2].slot.start_time, neighbor[idx1].slot.start_time
+            neighbor[idx1].room_id, neighbor[idx2].room_id = neighbor[idx2].room_id, neighbor[idx1].room_id
+            
+        return neighbor
+
+    def solve(self, max_iterations=1000, initial_temp=1000.0, cooling_rate=0.99):
         current_cost = self.calculate_cost(self.current_solution)
+        self.best_solution = copy.deepcopy(self.current_solution)
         best_cost = current_cost
+        
         temp = initial_temp
         
-        print(f"Initial Cost: {current_cost}")
+        print(f"Starting SA: Temp={temp}, Cost={current_cost}")
         
         for i in range(max_iterations):
-            # Generate Neighbor (TODO)
-            # neighbor = self.get_neighbor(self.current_solution)
-            # neighbor_cost = self.calculate_cost(neighbor)
+            neighbor = self.get_neighbor(self.current_solution)
+            neighbor_cost = self.calculate_cost(neighbor)
             
-            # Acceptance Probability (Metropolis)
-            # ...
+            delta = neighbor_cost - current_cost
+            
+            # Acceptance Probability
+            if delta < 0 or random.random() < math.exp(-delta / temp):
+                self.current_solution = neighbor
+                current_cost = neighbor_cost
+                
+                if current_cost < best_cost:
+                    best_cost = current_cost
+                    self.best_solution = copy.deepcopy(neighbor)
+                    print(f"Iter {i}: New Best Cost = {best_cost}")
             
             temp *= cooling_rate
             
+            if i % 100 == 0:
+                print(f"Iter {i}: Temp={temp:.2f}, Cost={current_cost}")
+                
         return self.best_solution
