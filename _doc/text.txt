@@ -1,0 +1,11 @@
+Our goal was to transform the raw FSTM schedule into a structured format that our metaheuristic algorithm can understand.
+
+The source data was a complex Excel file. The main challenge was that the data was stored in a visual grid with many merged cells. 
+
+To solve this, I developed a Python script using the openpyxl library:
+First, it identifies the rooms and their capacities.
+Second, it parses the merged cells to extract 183 individual class sessions.
+
+As a result, we now have three clean CSV files: Rooms, Groups, and Assignments. These are ready to be used by the algorithm.
+
+To make our Hard Constraints (like Teacher Conflicts and Room Capacity) work correctly, we need the teacher IDs and student counts. 
