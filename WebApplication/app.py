@@ -28,6 +28,7 @@ import copy
 import math
 import time
 import io
+import os
 import base64
 from datetime import datetime
 import warnings
@@ -38,7 +39,7 @@ warnings.filterwarnings('ignore')
 # ================================================================================
 st.set_page_config(
     page_title="FSTM Timetabling Optimizer",
-    page_icon="📅",
+    page_icon=None,
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -796,7 +797,7 @@ class TimetableGenerator:
     </style>
 </head>
 <body>
-    <h1>🎓 FSTM Optimized Timetable</h1>
+    <h1>FSTM Optimized Timetable</h1>
     <p class="meta-info">Generated on {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} | Hybrid GA+SA Optimization</p>
     
     <div class="legend">
@@ -1037,125 +1038,144 @@ class TimetableOptimizer:
 # DATA LOADING FUNCTIONS
 # ================================================================================
 
-def create_default_data():
-    """Create default FSTM dataset for demonstration"""
-    
-    # Rooms data
-    rooms_data = {
-        'room_id': ['AMPHI_A', 'AMPHI_B', 'AMPHI_C', 'AMPHI_D'] + [f'SALLE_{i}' for i in range(1, 31)],
-        'capacity': [300, 250, 200, 200] + [40] * 15 + [30] * 15,
-        'type': ['Amphitheater'] * 4 + ['Classroom'] * 30
-    }
-    rooms_df = pd.DataFrame(rooms_data)
-    
-    # Groups data
-    groups_data = {
-        'group_name': [f'G{i}' for i in range(1, 23)] + [f'MasterAI_G{i}' for i in range(1, 5)],
-        'size': [35] * 22 + [25] * 4
-    }
-    groups_df = pd.DataFrame(groups_data)
-    
-    # Teachers (implied from assignments)
-    teachers_data = {
-        'teacher_id': [f'PROF_{i}' for i in range(1, 45)],
-        'name': [f'Professor {i}' for i in range(1, 45)]
-    }
-    
-    # Slot penalties
-    slot_penalties_data = {
-        'start_time': ['08:30', '10:30', '12:30', '14:30', '16:30'],
-        'penalty': [5, 0, 0, 0, 5]  # Early and late slots penalized
-    }
-    slot_penalties_df = pd.DataFrame(slot_penalties_data)
-    
-    # Generate sample assignments
-    courses = [
-        ('Algorithmes', 'Cours', 'PROF_1'),
-        ('Structures de données', 'Cours', 'PROF_2'),
-        ('Intelligence Artificielle', 'Cours', 'PROF_3'),
-        ('Machine Learning', 'Cours', 'PROF_4'),
-        ('Deep Learning', 'Cours', 'PROF_5'),
-        ('Optimisation', 'Cours', 'PROF_6'),
-        ('Mathématiques', 'Cours', 'PROF_7'),
-        ('Probabilités', 'Cours', 'PROF_8'),
-        ('Bases de données', 'Cours', 'PROF_9'),
-        ('Réseaux', 'Cours', 'PROF_10'),
-    ]
-    
-    assignments_list = []
-    assignment_id = 0
-    
-    # Create diverse assignments
-    for course_name, session_type, teacher in courses:
-        # Create Cours sessions for large groups
-        for i in range(2):
-            groups = ';'.join([f'G{j}' for j in range(i*5+1, min(i*5+6, 23))])
-            assignments_list.append({
-                'assignment_id': assignment_id,
-                'session_name': f'{course_name}',
-                'session_type': 'Cours',
-                'teacher_id': teacher,
-                'involved_groups': groups,
-                'room_id': f'AMPHI_{chr(65 + assignment_id % 4)}'
-            })
-            assignment_id += 1
-    
-    # TD sessions
-    for course_name, _, teacher in courses[:5]:
-        for g in range(1, 12):
-            assignments_list.append({
-                'assignment_id': assignment_id,
-                'session_name': f'{course_name} TD',
-                'session_type': 'TD',
-                'teacher_id': f'PROF_{10 + g % 15}',
-                'involved_groups': f'G{g}',
-                'room_id': f'SALLE_{(assignment_id % 30) + 1}'
-            })
-            assignment_id += 1
-    
-    # TP sessions
-    for course_name, _, teacher in courses[:3]:
-        for g in range(1, 8):
-            assignments_list.append({
-                'assignment_id': assignment_id,
-                'session_name': f'{course_name} TP',
-                'session_type': 'TP',
-                'teacher_id': f'PROF_{25 + g % 10}',
-                'involved_groups': f'G{g}',
-                'room_id': f'SALLE_{(assignment_id % 15) + 16}'
-            })
-            assignment_id += 1
-    
-    # Master AI specific sessions
-    for course in ['Metaheuristics', 'NLP', 'Computer Vision', 'Reinforcement Learning']:
-        for g in range(1, 5):
-            assignments_list.append({
-                'assignment_id': assignment_id,
-                'session_name': f'{course}',
-                'session_type': random.choice(['Cours', 'TD', 'TP']),
-                'teacher_id': f'PROF_{35 + g}',
-                'involved_groups': f'MasterAI_G{g}',
-                'room_id': f'SALLE_{(assignment_id % 10) + 1}'
-            })
-            assignment_id += 1
-    
-    assignments_df = pd.DataFrame(assignments_list)
-    
-    return {
-        'rooms': rooms_df,
-        'groups': groups_df,
-        'assignments': assignments_df,
-        'slot_penalties': slot_penalties_df
-    }
+# Data directory path for FSTM real data
+FSTM_DATA_PATH = '../data/processed/'
 
 
-def load_csv_data(rooms_file, groups_file, assignments_file, slot_penalties_file):
-    """Load data from uploaded CSV files"""
+def load_fstm_real_data(data_path=FSTM_DATA_PATH):
+    """
+    Load actual FSTM data from the processed data directory.
+    
+    This function loads real university data including:
+    - Real room names (A1, A2, S5, GC3, etc.)
+    - Real group names (BA, BP, S1_GB, IEGS, etc.)
+    - Real course/session names from FSTM
+    
+    Args:
+        data_path: Path to the data directory (default: '../data/processed/')
+    
+    Returns:
+        Dictionary containing DataFrames for rooms, groups, assignments, slot_penalties
+        or None if loading fails
+    """
+    required_files = {
+        'rooms': 'rooms.csv',
+        'groups': 'groups.csv',
+        'assignments': 'assignments.csv',
+        'slot_penalties': 'slot_penalties.csv'
+    }
+    
+    # Check if all required files exist
+    missing_files = []
+    for key, filename in required_files.items():
+        filepath = f"{data_path}{filename}"
+        if not os.path.exists(filepath):
+            missing_files.append(filename)
+    
+    if missing_files:
+        return None, missing_files
+    
+    try:
+        # Load all CSV files
+        rooms_df = pd.read_csv(f"{data_path}rooms.csv")
+        groups_df = pd.read_csv(f"{data_path}groups.csv")
+        assignments_df = pd.read_csv(f"{data_path}assignments.csv")
+        slot_penalties_df = pd.read_csv(f"{data_path}slot_penalties.csv")
+        
+        # Basic validation
+        if len(rooms_df) == 0:
+            return None, ["rooms.csv is empty"]
+        if len(groups_df) == 0:
+            return None, ["groups.csv is empty"]
+        if len(assignments_df) == 0:
+            return None, ["assignments.csv is empty"]
+        if len(slot_penalties_df) == 0:
+            return None, ["slot_penalties.csv is empty"]
+        
+        # Ensure required columns exist
+        required_columns = {
+            'rooms': ['room_id', 'capacity'],
+            'groups': ['group_name', 'size'],
+            'assignments': ['session_name', 'session_type', 'involved_groups'],
+            'slot_penalties': ['start_time', 'penalty']
+        }
+        
+        dataframes = {
+            'rooms': rooms_df,
+            'groups': groups_df,
+            'assignments': assignments_df,
+            'slot_penalties': slot_penalties_df
+        }
+        
+        for df_name, cols in required_columns.items():
+            df = dataframes[df_name]
+            missing_cols = [c for c in cols if c not in df.columns]
+            if missing_cols:
+                return None, [f"{df_name}.csv missing columns: {missing_cols}"]
+        
+        # Add 'type' column to rooms if not present (default to Classroom)
+        if 'type' not in rooms_df.columns:
+            rooms_df['type'] = rooms_df['capacity'].apply(
+                lambda x: 'Amphitheater' if x > 100 else 'Classroom'
+            )
+        
+        # Add room_id to assignments if not present
+        if 'room_id' not in assignments_df.columns:
+            # Assign rooms based on session type and available rooms
+            amphitheaters = rooms_df[rooms_df['type'] == 'Amphitheater']['room_id'].tolist()
+            classrooms = rooms_df[rooms_df['type'] == 'Classroom']['room_id'].tolist()
+            
+            def assign_room(row, idx):
+                if row.get('session_type') == 'Cours' and amphitheaters:
+                    return amphitheaters[idx % len(amphitheaters)]
+                elif classrooms:
+                    return classrooms[idx % len(classrooms)]
+                else:
+                    return rooms_df['room_id'].iloc[0]
+            
+            assignments_df['room_id'] = [
+                assign_room(row, idx) for idx, row in assignments_df.iterrows()
+            ]
+        
+        # Add teacher_id if not present
+        if 'teacher_id' not in assignments_df.columns:
+            assignments_df['teacher_id'] = [f'PROF_{i % 50 + 1}' for i in range(len(assignments_df))]
+        
+        return {
+            'rooms': rooms_df,
+            'groups': groups_df,
+            'assignments': assignments_df,
+            'slot_penalties': slot_penalties_df
+        }, None
+        
+    except Exception as e:
+        return None, [f"Error loading data: {str(e)}"]
+
+
+def load_uploaded_csv_data(rooms_file, groups_file, assignments_file, slot_penalties_file):
+    """
+    Load data from user-uploaded CSV files.
+    
+    Args:
+        rooms_file: Uploaded rooms.csv file
+        groups_file: Uploaded groups.csv file
+        assignments_file: Uploaded assignments.csv file
+        slot_penalties_file: Uploaded slot_penalties.csv file
+    
+    Returns:
+        Dictionary containing DataFrames or None if loading fails
+    """
     try:
         rooms_df = pd.read_csv(rooms_file)
         groups_df = pd.read_csv(groups_file)
         assignments_df = pd.read_csv(assignments_file)
         slot_penalties_df = pd.read_csv(slot_penalties_file)
+        
+        # Add 'type' column to rooms if not present
+        if 'type' not in rooms_df.columns:
+            rooms_df['type'] = rooms_df['capacity'].apply(
+                lambda x: 'Amphitheater' if x > 100 else 'Classroom'
+            )
         
         return {
             'rooms': rooms_df,
@@ -1166,6 +1186,55 @@ def load_csv_data(rooms_file, groups_file, assignments_file, slot_penalties_file
     except Exception as e:
         st.error(f"Error loading CSV files: {str(e)}")
         return None
+
+
+def get_dataset_summary(data, mode_name):
+    """
+    Generate a summary of the loaded dataset.
+    
+    Args:
+        data: Dictionary containing DataFrames
+        mode_name: Name of the data loading mode
+    
+    Returns:
+        Dictionary with summary statistics
+    """
+    if data is None:
+        return None
+    
+    # Count unique session types
+    session_types = data['assignments']['session_type'].value_counts().to_dict()
+    
+    # Count amphitheaters vs classrooms
+    room_types = data['rooms']['type'].value_counts().to_dict() if 'type' in data['rooms'].columns else {}
+    
+    # Get sample names for display
+    sample_groups = data['groups']['group_name'].head(5).tolist()
+    sample_rooms = data['rooms']['room_id'].head(5).tolist()
+    sample_sessions = data['assignments']['session_name'].head(5).tolist()
+    
+    # Estimate total sessions (considering groups)
+    total_sessions = 0
+    for _, row in data['assignments'].iterrows():
+        groups_str = row.get('involved_groups', '')
+        if pd.notna(groups_str) and groups_str:
+            total_sessions += len(str(groups_str).split(';'))
+        else:
+            total_sessions += 1
+    
+    return {
+        'mode': mode_name,
+        'num_rooms': len(data['rooms']),
+        'num_groups': len(data['groups']),
+        'num_assignments': len(data['assignments']),
+        'estimated_sessions': total_sessions,
+        'num_time_slots': len(data['slot_penalties']) * 6,  # slots × days
+        'session_types': session_types,
+        'room_types': room_types,
+        'sample_groups': sample_groups,
+        'sample_rooms': sample_rooms,
+        'sample_sessions': sample_sessions
+    }
 
 
 # ================================================================================
@@ -1255,7 +1324,7 @@ def create_timetable_view(optimizer, day_filter='All', room_filter='All'):
             for room in rooms[:10]:  # Limit to 10 rooms for display
                 sessions = timetable_data[(day, time_slot)].get(room, [])
                 cell_content = '\n'.join([
-                    f"📚 {s['session_name']}\n👥 {s['group_name']}\n🏷️ {s['session_type']}"
+                    f"{s['session_name']} | {s['group_name']} | {s['session_type']}"
                     for s in sessions
                 ]) if sessions else ''
                 row[room] = cell_content
@@ -1272,7 +1341,7 @@ def main():
     """Main Streamlit application"""
     
     # Header
-    st.markdown('<h1 class="main-header">📅 FSTM University Timetabling Optimizer</h1>', 
+    st.markdown('<h1 class="main-header">FSTM University Timetabling Optimizer</h1>', 
                 unsafe_allow_html=True)
     
     st.markdown("""
@@ -1286,73 +1355,118 @@ def main():
     # SIDEBAR - Configuration Panel
     # ============================================================================
     with st.sidebar:
-        st.markdown("## ⚙️ Configuration Panel")
+        st.markdown("## Configuration Panel")
         
         # --- Dataset Selection ---
-        st.markdown("### 📁 Dataset")
-        use_default = st.checkbox("Use default FSTM dataset", value=True, 
-                                  help="Use pre-configured demonstration dataset")
+        st.markdown("### Dataset")
+        
+        # Two-mode data source selection
+        use_fstm_data = st.checkbox(
+            "Use FSTM dataset",
+            value=True,
+            help="Load real FSTM university data from the processed data directory"
+        )
         
         data = None
-        if use_default:
-            data = create_default_data()
-            st.success(f"✓ Default dataset loaded")
-            with st.expander("Dataset Summary"):
-                st.write(f"- **Rooms:** {len(data['rooms'])}")
-                st.write(f"- **Groups:** {len(data['groups'])}")
-                st.write(f"- **Assignments:** {len(data['assignments'])}")
+        
+        # --- Mode 1: FSTM Real Data (Default) ---
+        if use_fstm_data:
+            # Load FSTM real data from fixed path
+            data, errors = load_fstm_real_data(FSTM_DATA_PATH)
+            
+            if data is not None:
+                st.success("FSTM data loaded successfully")
+                summary = get_dataset_summary(data, "FSTM Data")
+                
+                with st.expander("Dataset Summary"):
+                    st.write(f"**Rooms:** {summary['num_rooms']}")
+                    st.write(f"**Groups:** {summary['num_groups']}")
+                    st.write(f"**Assignments:** {summary['num_assignments']}")
+                    st.write(f"**Estimated Sessions:** {summary['estimated_sessions']}")
+                    
+                    st.markdown("**Session Types:**")
+                    for stype, count in summary['session_types'].items():
+                        st.write(f"- {stype}: {count}")
+            else:
+                st.error("Failed to load FSTM data")
+                with st.expander("Error Details"):
+                    for err in errors:
+                        st.warning(f"- {err}")
+                    st.info("""
+                    Expected files in '../data/processed/':
+                    - rooms.csv
+                    - groups.csv  
+                    - assignments.csv
+                    - slot_penalties.csv
+                    """)
+        
+        # --- Mode 2: Upload Custom CSV ---
         else:
             st.markdown("#### Upload CSV Files")
-            rooms_file = st.file_uploader("rooms.csv", type='csv', key='rooms')
-            groups_file = st.file_uploader("groups.csv", type='csv', key='groups')
-            assignments_file = st.file_uploader("assignments.csv", type='csv', key='assignments')
-            penalties_file = st.file_uploader("slot_penalties.csv", type='csv', key='penalties')
+            
+            rooms_file = st.file_uploader(
+                "rooms.csv", 
+                type='csv', 
+                key='rooms',
+                help="Columns: room_id, capacity, type (optional)"
+            )
+            groups_file = st.file_uploader(
+                "groups.csv", 
+                type='csv', 
+                key='groups',
+                help="Columns: group_name, size"
+            )
+            assignments_file = st.file_uploader(
+                "assignments.csv", 
+                type='csv', 
+                key='assignments',
+                help="Columns: session_name, session_type, teacher_id, involved_groups"
+            )
+            penalties_file = st.file_uploader(
+                "slot_penalties.csv", 
+                type='csv', 
+                key='penalties',
+                help="Columns: start_time, penalty"
+            )
             
             if all([rooms_file, groups_file, assignments_file, penalties_file]):
-                data = load_csv_data(rooms_file, groups_file, assignments_file, penalties_file)
+                data = load_uploaded_csv_data(rooms_file, groups_file, assignments_file, penalties_file)
                 if data:
-                    st.success("✓ Custom dataset loaded")
+                    st.success("Custom dataset loaded")
+                    summary = get_dataset_summary(data, "Custom Upload")
+                    
+                    with st.expander("Dataset Summary"):
+                        st.write(f"**Rooms:** {summary['num_rooms']}")
+                        st.write(f"**Groups:** {summary['num_groups']}")
+                        st.write(f"**Assignments:** {summary['num_assignments']}")
+                        st.write(f"**Estimated Sessions:** {summary['estimated_sessions']}")
+            else:
+                uploaded_count = sum([
+                    rooms_file is not None,
+                    groups_file is not None,
+                    assignments_file is not None,
+                    penalties_file is not None
+                ])
+                st.info(f"Upload all 4 CSV files ({uploaded_count}/4 uploaded)")
         
         st.markdown("---")
         
         # --- Hard Constraints ---
-        st.markdown("### 🔒 Hard Constraints")
+        st.markdown("### Hard Constraints")
         st.caption("Must be satisfied (non-negotiable)")
         
-        col1, col2 = st.columns([0.1, 0.9])
-        with col1:
-            st.write("✓")
-        with col2:
-            st.write("No teacher conflicts")
-        
-        col1, col2 = st.columns([0.1, 0.9])
-        with col1:
-            st.write("✓")
-        with col2:
-            st.write("No room conflicts")
-        
-        col1, col2 = st.columns([0.1, 0.9])
-        with col1:
-            st.write("✓")
-        with col2:
-            st.write("No group conflicts")
-        
-        col1, col2 = st.columns([0.1, 0.9])
-        with col1:
-            st.write("✓")
-        with col2:
-            st.write("Room capacity respected")
-        
-        col1, col2 = st.columns([0.1, 0.9])
-        with col1:
-            st.write("✓")
-        with col2:
-            st.write("Room type compatibility")
+        st.markdown("""
+        - No teacher conflicts
+        - No room conflicts
+        - No group conflicts
+        - Room capacity respected
+        - Room type compatibility
+        """)
         
         st.markdown("---")
         
         # --- Soft Constraints ---
-        st.markdown("### 📊 Soft Constraints")
+        st.markdown("### Soft Constraints")
         st.caption("Optimization objectives (weighted)")
         
         enable_gaps = st.checkbox("Minimize schedule gaps", value=True)
@@ -1379,7 +1493,7 @@ def main():
     
     # Create tabs for different sections
     tab1, tab2, tab3, tab4 = st.tabs([
-        "🔧 Parameters", "🚀 Optimization", "📊 Results", "📅 Timetable"
+        "Parameters", "Optimization", "Results", "Timetable"
     ])
     
     # --- Tab 1: Parameters ---
@@ -1389,7 +1503,7 @@ def main():
         col1, col2 = st.columns(2)
         
         with col1:
-            st.markdown("### 🧬 Genetic Algorithm")
+            st.markdown("### Genetic Algorithm")
             st.caption("Global exploration phase")
             
             pop_size = st.slider("Population Size", 20, 200, 100, 10,
@@ -1413,7 +1527,7 @@ def main():
             }
         
         with col2:
-            st.markdown("### ❄️ Simulated Annealing")
+            st.markdown("### Simulated Annealing")
             st.caption("Local refinement phase")
             
             initial_temp = st.slider("Initial Temperature", 100, 5000, 1000, 100,
@@ -1436,7 +1550,7 @@ def main():
         # Random seed
         col1, col2, col3 = st.columns([1, 1, 1])
         with col2:
-            random_seed = st.number_input("🎲 Random Seed (for reproducibility)", 
+            random_seed = st.number_input("Random Seed (for reproducibility)", 
                                          min_value=1, max_value=9999, value=42)
         
         # Store parameters in session state
@@ -1451,17 +1565,27 @@ def main():
         st.markdown('<h2 class="sub-header">Run Optimization</h2>', unsafe_allow_html=True)
         
         if data is None:
-            st.warning("⚠️ Please configure and load a dataset first.")
+            st.warning("Please configure and load a dataset first in the sidebar.")
+            st.info("""
+            **To proceed:**
+            1. Ensure FSTM data checkbox is selected (or upload custom files)
+            2. Verify data loads successfully
+            3. Configure algorithm parameters in the Parameters tab
+            4. Return here to run optimization
+            """)
         else:
+            # Get summary for display
+            summary = get_dataset_summary(data, "FSTM Data" if use_fstm_data else "Custom Data")
+            
             # Display configuration summary
-            with st.expander("📋 Configuration Summary", expanded=True):
+            with st.expander("Configuration Summary", expanded=True):
                 col1, col2, col3 = st.columns(3)
                 
                 with col1:
                     st.markdown("**Dataset**")
-                    st.write(f"- Sessions: ~{len(data['assignments']) * 2}")
-                    st.write(f"- Rooms: {len(data['rooms'])}")
-                    st.write(f"- Time slots: 30")
+                    st.write(f"- Sessions: ~{summary['estimated_sessions']}")
+                    st.write(f"- Rooms: {summary['num_rooms']}")
+                    st.write(f"- Time slots: {summary['num_time_slots']}")
                 
                 with col2:
                     st.markdown("**GA Parameters**")
@@ -1480,7 +1604,7 @@ def main():
             # Run button
             col1, col2, col3 = st.columns([1, 2, 1])
             with col2:
-                run_button = st.button("🚀 Run Optimization", use_container_width=True, 
+                run_button = st.button("Run Optimization", use_container_width=True, 
                                       type="primary")
             
             if run_button:
@@ -1497,7 +1621,7 @@ def main():
                     st.markdown("---")
                     
                     # Progress containers
-                    st.markdown("### 🔄 Optimization Progress")
+                    st.markdown("### Optimization Progress")
                     
                     # GA Progress
                     st.markdown("#### Phase 1: Genetic Algorithm")
@@ -1548,7 +1672,7 @@ def main():
                     st.session_state['optimization_complete'] = True
                     
                     # Success message
-                    st.success(f"✅ Optimization completed in {elapsed:.2f} seconds!")
+                    st.success(f"Optimization completed in {elapsed:.2f} seconds!")
                     
                     metrics = optimizer.get_metrics()
                     if metrics['hard_violations'] == 0:
@@ -1556,13 +1680,13 @@ def main():
                         st.markdown("""
                         <div style="background: linear-gradient(135deg, #27ae60, #2ecc71); 
                                     padding: 20px; border-radius: 10px; text-align: center; color: white;">
-                            <h2>🎉 FEASIBLE SOLUTION FOUND!</h2>
+                            <h2>FEASIBLE SOLUTION FOUND</h2>
                             <p>All hard constraints are satisfied. The timetable is ready for deployment.</p>
                         </div>
                         """, unsafe_allow_html=True)
                     
                 except Exception as e:
-                    st.error(f"❌ Optimization failed: {str(e)}")
+                    st.error(f"Optimization failed: {str(e)}")
                     st.exception(e)
     
     # --- Tab 3: Results ---
@@ -1570,13 +1694,13 @@ def main():
         st.markdown('<h2 class="sub-header">Optimization Results</h2>', unsafe_allow_html=True)
         
         if 'optimizer' not in st.session_state or not st.session_state.get('optimization_complete'):
-            st.info("🔄 Run optimization first to see results.")
+            st.info("Run optimization first to see results.")
         else:
             optimizer = st.session_state['optimizer']
             metrics = optimizer.get_metrics()
             
             # Summary metrics
-            st.markdown("### 📈 Summary Metrics")
+            st.markdown("### Summary Metrics")
             
             col1, col2, col3, col4 = st.columns(4)
             
@@ -1598,7 +1722,7 @@ def main():
                 st.metric(
                     label="Hard Violations",
                     value=f"{metrics['hard_violations']}",
-                    delta="✓ Feasible" if metrics['hard_violations'] == 0 else "⚠ Infeasible"
+                    delta="Feasible" if metrics['hard_violations'] == 0 else "Infeasible"
                 )
             
             with col4:
@@ -1611,7 +1735,7 @@ def main():
             st.markdown("---")
             
             # Convergence plot
-            st.markdown("### 📉 Convergence Analysis")
+            st.markdown("### Convergence Analysis")
             
             if len(optimizer.ga_history) > 0:
                 fig = plot_convergence(optimizer.ga_history, optimizer.sa_history)
@@ -1621,7 +1745,7 @@ def main():
             st.markdown("---")
             
             # Constraint analysis
-            st.markdown("### 🔍 Constraint Analysis")
+            st.markdown("### Constraint Analysis")
             
             analysis = metrics['detailed_analysis']
             fig = plot_constraint_analysis(analysis)
@@ -1629,7 +1753,7 @@ def main():
             plt.close()
             
             # Detailed breakdown
-            with st.expander("📊 Detailed Constraint Breakdown"):
+            with st.expander("Detailed Constraint Breakdown"):
                 col1, col2 = st.columns(2)
                 
                 with col1:
@@ -1649,7 +1773,7 @@ def main():
             st.markdown("---")
             
             # Export section
-            st.markdown("### 💾 Export Timetable")
+            st.markdown("### Export Timetable")
             
             col1, col2, col3 = st.columns([1, 1, 1])
             
@@ -1657,7 +1781,7 @@ def main():
                 excel_buffer = optimizer.export_excel()
                 if excel_buffer:
                     st.download_button(
-                        label="📥 Download Excel",
+                        label="Download Excel",
                         data=excel_buffer,
                         file_name=f"FSTM_Timetable_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx",
                         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -1668,7 +1792,7 @@ def main():
                 html_content = optimizer.export_html()
                 if html_content:
                     st.download_button(
-                        label="📥 Download HTML",
+                        label="Download HTML",
                         data=html_content,
                         file_name=f"FSTM_Timetable_{datetime.now().strftime('%Y%m%d_%H%M%S')}.html",
                         mime="text/html",
@@ -1680,7 +1804,7 @@ def main():
         st.markdown('<h2 class="sub-header">Timetable Visualization</h2>', unsafe_allow_html=True)
         
         if 'optimizer' not in st.session_state or not st.session_state.get('optimization_complete'):
-            st.info("🔄 Run optimization first to view the timetable.")
+            st.info("Run optimization first to view the timetable.")
         else:
             optimizer = st.session_state['optimizer']
             
@@ -1700,9 +1824,9 @@ def main():
             # Color legend
             st.markdown("""
             <div style="display: flex; gap: 20px; margin-bottom: 20px;">
-                <span class="session-cours">📘 Cours</span>
-                <span class="session-td">📗 TD</span>
-                <span class="session-tp">📕 TP</span>
+                <span class="session-cours">Cours</span>
+                <span class="session-td">TD</span>
+                <span class="session-tp">TP</span>
             </div>
             """, unsafe_allow_html=True)
             
@@ -1717,7 +1841,7 @@ def main():
                 )
             
             # HTML preview
-            with st.expander("🌐 HTML Preview"):
+            with st.expander("HTML Preview"):
                 html_content = optimizer.export_html()
                 if html_content:
                     st.components.v1.html(html_content, height=800, scrolling=True)
